@@ -1,7 +1,9 @@
-﻿
 
+
+#if defined _WIN32 || defined __CYGWIN__
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -10,10 +12,12 @@
 #include "MQWidget.h"
 //#include <vld.h>
 
-HINSTANCE hInstance;
-
 BOOL OutlineGen(MQDocument doc);
 
+
+#if defined _WIN32 || defined __CYGWIN__
+
+HINSTANCE hInstance;
 
 //---------------------------------------------------------------------------
 //  DllMain
@@ -29,6 +33,7 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 	//プラグインとしては特に必要な処理はないので、何もせずにTRUEを返す
     return TRUE;
 }
+#endif
 
 //---------------------------------------------------------------------------
 //  MQGetPlugInID
@@ -129,22 +134,27 @@ WidthDialog::~WidthDialog()
 {
 }
 
-BOOL OutlineGen(MQDocument doc)
+int CreateShadowMaterial(MQDocument doc)
 {
-	float width = 0.01;
-	int shadowidx = -1;
+  MQMaterial mat = MQ_CreateMaterial();
+  mat->SetName("shadow");
+  mat->SetShader(MQMATERIAL_SHADER_CONSTANT);
+  mat->SetVertexColor(MQMATERIAL_VERTEXCOLOR_DISABLE);
+  mat->SetDoubleSided(0/*FALSE*/);
+  MQColor c;
+  c.r = c.g = c.b = 0;
+  mat->SetColor(c);
+  mat->SetAlpha(1.0);
+  
+  return doc->AddMaterial(mat);
+}
+
+int GetShadowMaterialIdx(MQDocument doc)
+{
+  int shadowidx = -1;
   char tmp[52] = {0};
-	int vertidx[101];
-
-	MQWindow mainwin = MQWindow::GetMainWindow();
-	WidthDialog dlg(mainwin);
-	if(dlg.Execute() != MQDialog::DIALOG_OK){
-		return FALSE;
-	}
-  width = dlg.edit_width->GetPosition();
-
-	for(int i=0;i<doc->GetMaterialCount();i++)
-	{
+  for(int i=0;i<doc->GetMaterialCount();i++)
+  {
     MQMaterial m = doc->GetMaterial(i);
     if(m==NULL)continue;
     m->GetName(tmp, 50);
@@ -156,25 +166,61 @@ BOOL OutlineGen(MQDocument doc)
   }
   if(shadowidx==-1)
   {
+    shadowidx = CreateShadowMaterial(doc);
+  }
+  return shadowidx;
+}
+
+MQObject GetOutlineObjIdx(MQDocument doc, int *idx = NULL)
+{
+  char tmp[52] = {0};
+  for(int i=0;i<doc->GetObjectCount();i++)
+  {
+    MQObject o = doc->GetObject(i);
+    if(o==NULL)continue;
+    o->GetName(tmp, 50);
+    if(strcmp(tmp, "OutlineGenPlugin")==0)
+    {
+      if(idx!=NULL)*idx = i;
+      return o;
+    }
+  }
+  return NULL;
+}
+
+BOOL OutlineGen(MQDocument doc)
+{
+  float width = 0.01;
+  int shadowidx = -1;
+  int vertidx[101];
+
+  MQWindow mainwin = MQWindow::GetMainWindow();
+  WidthDialog dlg(mainwin);
+  if(dlg.Execute() != MQDialog::DIALOG_OK)
+  {
+    return FALSE;
+  }
+  width = dlg.edit_width->GetPosition();
+  
+  shadowidx = GetShadowMaterialIdx(doc);
+  if(shadowidx==-1)
+  {
     return FALSE;
   }
 
   int iMirrorType = MQOBJECT_MIRROR_NONE;
   DWORD dwMirrorAxis = MQOBJECT_MIRROR_AXIS_X;
   float fMirrorDistance = 100.0;
-	
-	for(int i=0;i<doc->GetObjectCount();i++)
-	{
-    MQObject o = doc->GetObject(i);
-    if(o==NULL)continue;
-    o->GetName(tmp, 50);
-    if(strcmp(tmp, "OutlineGenPlugin")==0)
+  
+  {
+    int objIdx = -1;
+    MQObject o = GetOutlineObjIdx(doc, &objIdx);
+    if(o!=NULL)
     {
       iMirrorType = o->GetMirrorType();
       dwMirrorAxis = o->GetMirrorAxis();
       fMirrorDistance = o->GetMirrorDistance();
-      doc->DeleteObject(i);
-      break;
+      doc->DeleteObject(objIdx);
     }
   }
   
@@ -190,9 +236,9 @@ BOOL OutlineGen(MQDocument doc)
   if(arrFaceIdx==NULL){
     return FALSE;
   }
-	
-	for(int i=0;i<doc->GetObjectCount();i++)
-	{
+  
+  for(int i=0;i<doc->GetObjectCount();i++)
+  {
     int startvidx = objOutline->GetVertexCount();
     MQObject o = doc->GetObject(i);
     if(o==NULL)continue;
