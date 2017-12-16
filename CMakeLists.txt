@@ -21,8 +21,10 @@ IF(WIN32)
   add_library(MQOutlineGen SHARED
     MQOutlineGen.cpp
     ${MQSDK_INCLUDE_DIR}/MQInit.cpp
+    ${MQSDK_INCLUDE_DIR}/MQBasePlugin.cpp
     ${MQSDK_INCLUDE_DIR}/MQPlugin.cpp
     ${MQSDK_INCLUDE_DIR}/MQWidget.cpp
+    ${MQSDK_INCLUDE_DIR}/MQSetting.cpp
     ${MQSDK_INCLUDE_DIR}/MQ3DLib.cpp
   )
   set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /OPT:REF")
@@ -34,8 +36,10 @@ ELSE()
   add_library(MQOutlineGen MODULE
     MQOutlineGen.cpp
     ${MQSDK_INCLUDE_DIR}/MQInit.cpp
+    ${MQSDK_INCLUDE_DIR}/MQBasePlugin.cpp
     ${MQSDK_INCLUDE_DIR}/MQPlugin.cpp
     ${MQSDK_INCLUDE_DIR}/MQWidget.cpp
+    ${MQSDK_INCLUDE_DIR}/MQSetting.cpp
     ${MQSDK_INCLUDE_DIR}/MQ3DLib.cpp
     ${MQSDK_INCLUDE_DIR}/osx/StringUtil.mm
   )

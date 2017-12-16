@@ -8,11 +8,14 @@
 #include <stdlib.h>
 #include <math.h>
 #include "MQPlugin.h"
+#include "MQBasePlugin.h"
 #include "MQ3DLib.h"
 #include "MQWidget.h"
+#include "MQSetting.h"
 //#include <vld.h>
 
-BOOL OutlineGen(MQDocument doc);
+class OutlineGenPlugin;
+BOOL OutlineGen(MQDocument doc, OutlineGenPlugin* plugin);
 
 
 #if defined _WIN32 || defined __CYGWIN__
@@ -35,99 +38,127 @@ BOOL APIENTRY DllMain( HANDLE hModule,
 }
 #endif
 
-//---------------------------------------------------------------------------
-//  MQGetPlugInID
-//    プラグインIDを返す。
-//    この関数は起動時に呼び出される。
-//---------------------------------------------------------------------------
-MQPLUGIN_EXPORT void MQGetPlugInID(DWORD *Product, DWORD *ID)
+class OutlineGenPlugin : public MQObjectPlugin
 {
-	// プロダクト名(制作者名)とIDを、全部で64bitの値として返す
-	// 値は他と重複しないようなランダムなもので良い
-	*Product = 0xA8BEE201;
-	*ID      = 0xCC9DA482;
+public:
+  OutlineGenPlugin(){}
+  ~OutlineGenPlugin(){}
+
+  void GetPlugInID(DWORD *Product, DWORD *ID) override
+  {
+    *Product = 0xA8BEE201;
+    *ID      = 0xCC9DA482;
+  }
+  const char *GetPlugInName(void) override
+  {
+    return "OutlineGen           Copyright(C) 2017, tamachan";
+  }
+  const char *EnumString(int index) override
+  {
+    switch(index)
+    {
+      case 0: return "OutlineGen";
+    }
+    return NULL;
+  }
+  BOOL Execute(int index, MQDocument doc) override
+  {
+    switch(index){
+      case 0: return OutlineGen(doc, this);
+    }
+    return FALSE;
+  }
+
+private:
+  BOOL Wired(MQDocument doc);
+  BOOL DeleteLines(MQDocument doc);
+};
+
+MQBasePlugin *GetPluginClass()
+{
+  static OutlineGenPlugin plugin;
+  return &plugin;
 }
 
-//---------------------------------------------------------------------------
-//  MQGetPlugInName
-//    プラグイン名を返す。
-//    この関数は[プラグインについて]表示時に呼び出される。
-//---------------------------------------------------------------------------
-MQPLUGIN_EXPORT const char *MQGetPlugInName(void)
-{
-	// プラグイン名
-	return "OutlineGen           Copyright(C) 2017, tamachan";
-}
-
-//---------------------------------------------------------------------------
-//  MQGetPlugInType
-//    プラグインのタイプを返す。
-//    この関数は起動時に呼び出される。
-//---------------------------------------------------------------------------
-MQPLUGIN_EXPORT int MQGetPlugInType(void)
-{
-	// オブジェクト変形用プラグインである
-	return MQPLUGIN_TYPE_OBJECT;
-}
-
-//---------------------------------------------------------------------------
-//  MQEnumString
-//    ポップアップメニューに表示される文字列を返す。
-//    この関数は起動時に呼び出される。
-//---------------------------------------------------------------------------
-MQPLUGIN_EXPORT const char *MQEnumString(int index)
-{
-	switch(index){
-	case 0: return "OutlineGen";
-	}
-	return NULL;
-}
-
-//---------------------------------------------------------------------------
-//  MQModifyObject
-//    メニューから選択されたときに呼び出される。
-//---------------------------------------------------------------------------
-MQPLUGIN_EXPORT BOOL MQModifyObject(int index, MQDocument doc)
-{
-	switch(index){
-	case 0: return OutlineGen(doc);
-	}
-	return FALSE;
-}
 
 class WidthDialog : public MQDialog
 {
 public:
-	WidthDialog(MQWindowBase& parent);
-	~WidthDialog();
+  WidthDialog(MQWindowBase& parent, OutlineGenPlugin *plugin);
+  ~WidthDialog();
+  
+  MQSetting* OpenSetting()
+  {
+    if(m_plugin==NULL)return NULL;
+    MQSetting *config = OpenSetting();
+    //if(config==NULL)return NULL;
+    return config;
+  }
+  
+  void SaveConfig()
+  {
+    MQSetting *config = OpenSetting();
+    if(config==NULL)return;
+    
+    double dbltmp = 1.0;
+    
+    dbltmp = edit_width->GetPosition();
+    config->Save("width", dbltmp);
+    
+    m_plugin->CloseSetting(config);
+  }
+  bool LoadConfig()
+  {
+    MQSetting *config = OpenSetting();
+    if(config==NULL)return false;
+    
+    double dbltmp = 1.0;
+    
+    config->Load("width", dbltmp, 0.5);
+    edit_width->SetPosition(dbltmp);
+    
+    m_plugin->CloseSetting(config);
+    return true;
+  }
+  
+  BOOL OnOK(MQWidgetBase *sender, MQDocument doc)
+  {
+    SaveConfig();
+    return FALSE;
+  }
 
-	MQDoubleSpinBox *edit_width;
+  OutlineGenPlugin *m_plugin;
+  MQDoubleSpinBox *edit_width;
 };
 
-WidthDialog::WidthDialog(MQWindowBase& parent) : MQDialog(parent)
+WidthDialog::WidthDialog(MQWindowBase& parent, OutlineGenPlugin *plugin) : MQDialog(parent)
 {
-	SetTitle(L"OutlineGen");
+  m_plugin = plugin;
+  SetTitle(L"OutlineGen");
 
-	MQFrame *mainFrame = CreateHorizontalFrame(this);
+  MQFrame *mainFrame = CreateHorizontalFrame(this);
 
-	MQFrame *paramFrame = CreateHorizontalFrame(mainFrame);
-	paramFrame->SetMatrixColumn(2);
-	
-	CreateLabel(paramFrame, L"width");
-	edit_width = CreateDoubleSpinBox(paramFrame);
-	edit_width->SetIncrement(0.01);
-	edit_width->SetPosition(0.04);
+  MQFrame *paramFrame = CreateHorizontalFrame(mainFrame);
+  paramFrame->SetMatrixColumn(2);
+  
+  CreateLabel(paramFrame, L"width");
+  edit_width = CreateDoubleSpinBox(paramFrame);
+  edit_width->SetIncrement(0.01);
+  edit_width->SetPosition(0.04);
   edit_width->SetVariableDigit(true);
 
-	MQFrame *sideFrame = CreateVerticalFrame(mainFrame);
+  MQFrame *sideFrame = CreateVerticalFrame(mainFrame);
 
-	MQButton *okbtn = CreateButton(sideFrame, L"OK");
-	okbtn->SetDefault(true);
-	okbtn->SetModalResult(MQDialog::DIALOG_OK);
+  MQButton *okbtn = CreateButton(sideFrame, L"OK");
+  okbtn->SetDefault(true);
+  okbtn->SetModalResult(MQDialog::DIALOG_OK);
+  okbtn->AddClickEvent(this, &WidthDialog::OnOK, true);
 
-	MQButton *cancelbtn = CreateButton(sideFrame, L"Cancel");
-	cancelbtn->SetCancel(true);
-	cancelbtn->SetModalResult(MQDialog::DIALOG_CANCEL);
+  MQButton *cancelbtn = CreateButton(sideFrame, L"Cancel");
+  cancelbtn->SetCancel(true);
+  cancelbtn->SetModalResult(MQDialog::DIALOG_CANCEL);
+  
+  LoadConfig();
 }
 
 WidthDialog::~WidthDialog()
@@ -188,14 +219,14 @@ MQObject GetOutlineObjIdx(MQDocument doc, int *idx = NULL)
   return NULL;
 }
 
-BOOL OutlineGen(MQDocument doc)
+BOOL OutlineGen(MQDocument doc, OutlineGenPlugin *plugin)
 {
   float width = 0.01;
   int shadowidx = -1;
   int vertidx[101];
 
   MQWindow mainwin = MQWindow::GetMainWindow();
-  WidthDialog dlg(mainwin);
+  WidthDialog dlg(mainwin, plugin);
   if(dlg.Execute() != MQDialog::DIALOG_OK)
   {
     return FALSE;
