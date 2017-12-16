@@ -1,0 +1,2 @@
+strip -SXTx MQOutlineGen.plugin/Contents/MacOS/*
+cp -r MQOutlineGen.plugin "$HOME/Library/Application Support/tetraface/Metasequoia4/Plugins/Object/"
