@@ -14,8 +14,7 @@
 #include "MQSetting.h"
 //#include <vld.h>
 
-class OutlineGenPlugin;
-BOOL OutlineGen(MQDocument doc, OutlineGenPlugin* plugin);
+BOOL OutlineGen(MQDocument doc);
 
 
 #if defined _WIN32 || defined __CYGWIN__
@@ -64,14 +63,10 @@ public:
   BOOL Execute(int index, MQDocument doc) override
   {
     switch(index){
-      case 0: return OutlineGen(doc, this);
+      case 0: return OutlineGen(doc);
     }
     return FALSE;
   }
-
-private:
-  BOOL Wired(MQDocument doc);
-  BOOL DeleteLines(MQDocument doc);
 };
 
 MQBasePlugin *GetPluginClass()
@@ -80,23 +75,30 @@ MQBasePlugin *GetPluginClass()
   return &plugin;
 }
 
+OutlineGenPlugin *GetOutlineGenPluginClass()
+{
+  return static_cast<OutlineGenPlugin*>(GetPluginClass());
+}
+
 
 class WidthDialog : public MQDialog
 {
 public:
-  WidthDialog(MQWindowBase& parent, OutlineGenPlugin *plugin);
+  WidthDialog(MQWindowBase& parent);
   ~WidthDialog();
   
   MQSetting* OpenSetting()
   {
-    if(m_plugin==NULL)return NULL;
-    MQSetting *config = OpenSetting();
+    OutlineGenPlugin *plugin = GetOutlineGenPluginClass();
+    if(plugin==NULL)return NULL;
+    MQSetting *config = plugin->OpenSetting();
     //if(config==NULL)return NULL;
     return config;
   }
   
   void SaveConfig()
   {
+    OutlineGenPlugin *plugin = GetOutlineGenPluginClass();
     MQSetting *config = OpenSetting();
     if(config==NULL)return;
     
@@ -105,10 +107,11 @@ public:
     dbltmp = edit_width->GetPosition();
     config->Save("width", dbltmp);
     
-    m_plugin->CloseSetting(config);
+    plugin->CloseSetting(config);
   }
   bool LoadConfig()
   {
+    OutlineGenPlugin *plugin = GetOutlineGenPluginClass();
     MQSetting *config = OpenSetting();
     if(config==NULL)return false;
     
@@ -117,7 +120,7 @@ public:
     config->Load("width", dbltmp, 0.5);
     edit_width->SetPosition(dbltmp);
     
-    m_plugin->CloseSetting(config);
+    plugin->CloseSetting(config);
     return true;
   }
   
@@ -127,13 +130,11 @@ public:
     return FALSE;
   }
 
-  OutlineGenPlugin *m_plugin;
   MQDoubleSpinBox *edit_width;
 };
 
-WidthDialog::WidthDialog(MQWindowBase& parent, OutlineGenPlugin *plugin) : MQDialog(parent)
+WidthDialog::WidthDialog(MQWindowBase& parent) : MQDialog(parent)
 {
-  m_plugin = plugin;
   SetTitle(L"OutlineGen");
 
   MQFrame *mainFrame = CreateHorizontalFrame(this);
@@ -219,14 +220,14 @@ MQObject GetOutlineObjIdx(MQDocument doc, int *idx = NULL)
   return NULL;
 }
 
-BOOL OutlineGen(MQDocument doc, OutlineGenPlugin *plugin)
+BOOL OutlineGen(MQDocument doc)
 {
   float width = 0.01;
   int shadowidx = -1;
   int vertidx[101];
 
   MQWindow mainwin = MQWindow::GetMainWindow();
-  WidthDialog dlg(mainwin, plugin);
+  WidthDialog dlg(mainwin);
   if(dlg.Execute() != MQDialog::DIALOG_OK)
   {
     return FALSE;
