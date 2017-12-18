@@ -13,6 +13,7 @@
 #include "MQWidget.h"
 #include "MQSetting.h"
 //#include <vld.h>
+#include "TamaMQLib.h"
 
 BOOL OutlineGen(MQDocument doc);
 
@@ -220,11 +221,40 @@ MQObject GetOutlineObjIdx(MQDocument doc, int *idx = NULL)
   return NULL;
 }
 
+MQPoint CalcFaceNormal(MQObject o, int fi)
+{
+  int numFV = o->GetFacePointCount(fi);
+  if(numFV<3)return MQPoint(0.0f, 0.0f, 0.0f);
+  std::vector<MQPoint> pts(numFV);
+  GetPoint(o, fi, numFV, pts);
+  switch(numFV)
+  {
+    case 3:
+      return GetNormal(pts[0], pts[1], pts[2]);
+    case 4:
+      return GetQuadNormal(pts[0], pts[1], pts[2], pts[3]);
+    default:
+      return GetPolyNormal(&(pts[0]), numFV);
+  }
+}
+
+MQPoint CalcVertexNormal(MQObject o, int vi)
+{
+  std::vector<int> fidx;
+  GetVertexRelatedFaces(o, vi, fidx);
+  int numRelF = fidx.size();
+  MQPoint v(0.0f, 0.0f, 0.0f);
+  for(int i=0;i<numRelF;i++)
+  {
+    v += CalcFaceNormal(o, fidx[i]);
+  }
+  return Normalize(v);
+}
+
 BOOL OutlineGen(MQDocument doc)
 {
   float width = 0.01;
   int shadowidx = -1;
-  int vertidx[101];
 
   MQWindow mainwin = MQWindow::GetMainWindow();
   WidthDialog dlg(mainwin);
@@ -262,70 +292,35 @@ BOOL OutlineGen(MQDocument doc)
   objOutline->SetMirrorType(iMirrorType);
   objOutline->SetMirrorAxis(dwMirrorAxis);
   objOutline->SetMirrorDistance(fMirrorDistance);
-
-  int numArrFaceIdx = 10;
-  int *arrFaceIdx = (int *)malloc(sizeof(int)*numArrFaceIdx);
-  if(arrFaceIdx==NULL){
-    return FALSE;
-  }
   
-  for(int i=0;i<doc->GetObjectCount();i++)
+  for(int oi=0;oi<doc->GetObjectCount();oi++)
   {
     int startvidx = objOutline->GetVertexCount();
-    MQObject o = doc->GetObject(i);
+    MQObject o = doc->GetObject(oi);
     if(o==NULL)continue;
-    MQObjNormal *normal = new MQObjNormal(o);
-    if(normal==NULL)break;
     if(o->GetVisible()==0)continue;
 
     int numV = o->GetVertexCount();
     int numF = o->GetFaceCount();
-    for(int j=0;j<numV;j++)
+    for(int vi=0;vi<numV;vi++)
     {
-      UINT numRelF = o->GetVertexRelatedFaces(j, NULL);
-      if(numRelF > numArrFaceIdx)
-      {
-        numArrFaceIdx = numRelF;
-        arrFaceIdx = (int *)realloc(arrFaceIdx, sizeof(int)*numArrFaceIdx);
-      }
-      if(arrFaceIdx==NULL)
-      {
-        if(normal)delete normal;
-        return FALSE;
-      }
-      o->GetVertexRelatedFaces(j, arrFaceIdx);
-      MQPoint p = o->GetVertex(j);
-      int numVInF = o->GetFacePointCount(arrFaceIdx[0]);
-      int *varr = (int*)malloc(sizeof(int)*numVInF);
-      o->GetFacePointArray(arrFaceIdx[0], varr);
-      int idxV = 0;
-      for(int n=0;n<numVInF;n++)
-      {
-        if(varr[n]==j)
-        {
-          idxV=n;
-          break;
-        }
-      }
-      MQPoint nor = normal->Get(arrFaceIdx[0], idxV);
-      free(varr);
-      p += nor*width;
+      MQPoint vn = CalcVertexNormal(o, vi);
+      MQPoint p = o->GetVertex(vi);
+      p += vn*width;
       objOutline->AddVertex(p);
     }
-    for(int k=0;k<numF;k++)
+    std::vector<int> vidx(16);
+    for(int fi=0;fi<numF;fi++)
     {
-      int numV = o->GetFacePointCount(k);
-      if(numV>100)break;
-      o->GetFacePointArray(k, vertidx);
-      for(int m=0;m<numV;m++)vertidx[m]+=startvidx;
-      int newFIdx = objOutline->AddFace(numV, vertidx);
+      int numFV = o->GetFacePointCount(fi);
+      vidx.resize(numFV);
+      o->GetFacePointArray(fi, &(vidx[0]));
+      for(int m=0;m<numFV;m++)vidx[m]+=startvidx;
+      int newFIdx = objOutline->AddFace(numFV, &(vidx[0]));
       objOutline->InvertFace(newFIdx);
       objOutline->SetFaceMaterial(newFIdx, shadowidx);
     }
-    if(normal)delete normal;
   }
-
-  if(arrFaceIdx)free(arrFaceIdx);
   
   doc->AddObject(objOutline);
 
