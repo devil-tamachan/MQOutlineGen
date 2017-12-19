@@ -1,6 +1,7 @@
 # MQOutlineGen
 メタセコで裏面ポリゴンを簡単につくるプラグイン
 
+![outlinegen1](https://raw.githubusercontent.com/devil-tamachan/MQOutlineGen/master/outlinegen1.jpg)
 
 ## ダウンロード (Win/MacOSX)：
 
