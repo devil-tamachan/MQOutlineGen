@@ -251,6 +251,19 @@ MQPoint CalcVertexNormal(MQObject o, int vi)
   return Normalize(v);
 }
 
+MQPoint CalcVertexNormalStore(MQObject o, int vi, std::vector<MQPoint> &fnArr)
+{
+  std::vector<int> fidx;
+  GetVertexRelatedFaces(o, vi, fidx);
+  int numRelF = fidx.size();
+  MQPoint v(0.0f, 0.0f, 0.0f);
+  for(int i=0;i<numRelF;i++)
+  {
+    v += fnArr[fidx[i]];
+  }
+  return Normalize(v);
+}
+
 BOOL OutlineGen(MQDocument doc)
 {
   float width = 0.01;
@@ -302,9 +315,15 @@ BOOL OutlineGen(MQDocument doc)
 
     int numV = o->GetVertexCount();
     int numF = o->GetFaceCount();
+    
+    std::vector<MQPoint> fnArr(numF);
+    for(int fi=0;fi<numF;fi++)
+    {
+      fnArr[fi] = CalcFaceNormal(o, fi);
+    }
     for(int vi=0;vi<numV;vi++)
     {
-      MQPoint vn = CalcVertexNormal(o, vi);
+      MQPoint vn = CalcVertexNormalStore(o, vi, fnArr);
       MQPoint p = o->GetVertex(vi);
       p += vn*width;
       objOutline->AddVertex(p);
