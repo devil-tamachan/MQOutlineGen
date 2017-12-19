@@ -8,17 +8,10 @@
  
 ##  インストール方法：
 
-#### Windows 64ビット版インストール方法:
+#### Windows 32/64ビット版インストール方法:
 
- - MQOutlineGen64.dll を %APPDATA%\tetraface\Metasequoia4_x64\Plugins\Object へコピペ
-    - 場所がわからない人はアプリを全部終了して、Windowsキーを押したままRを押して"ファイル名を指定して実行"アプリを出します。
-   - 名前に %APPDATA%\tetraface\Metasequoia4_x64\Plugins\Object と入力してOKを押してください
-
-#### Windows 32ビット版インストール方法:
-
- - MQOutlineGen.dll を %APPDATA%\tetraface\Metasequoia4\Plugins\Object へコピペ
-    - 場所がわからない人はアプリを全部終了して、Windowsキーを押したままRを押して"ファイル名を指定して実行"アプリを出します。
-   - 名前に %APPDATA%\tetraface\Metasequoia4\Plugins\Object と入力してOKを押してください
+ - 上記リンクからダウンロードしたzipを解凍する
+ - メタセコ画面上部のメニュー → ヘルプ → プラグインについて → インストールボタンをクリック。MQOutlineGen.dll または MQOutlineGen64.dllを選択してインストール
 
 #### MacOSX版インストール方法:
 
