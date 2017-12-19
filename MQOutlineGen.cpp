@@ -3,6 +3,8 @@
 #if defined _WIN32 || defined __CYGWIN__
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#else
+#define _MAX_PATH PATH_MAX
 #endif
 #include <stdio.h>
 #include <stdlib.h>
